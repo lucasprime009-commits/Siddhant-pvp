@@ -1,0 +1,1278 @@
+-- Siddhant Hub Ultimate - Clean Mobile PVP, Specific Player Selector, Shift-Lock Aimbot & Star Effects Edition
+-- Created for Siddhant Neupane / सिद्धांत
+-- Discord: https://discord.gg/cmYtfCmQU
+
+getgenv().__SiddhantHubLoaded = true
+
+-- Clean up any previous UI instances
+pcall(function()
+    game:GetService("CoreGui").SiddhantHubUI:Destroy()
+end)
+pcall(function()
+    game:GetService("Players").LocalPlayer.PlayerGui.SiddhantHubSystem:Destroy()
+end)
+pcall(function()
+    game:GetService("Players").LocalPlayer.PlayerGui.SiddhantHubUI:Destroy()
+end)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Camera = workspace.CurrentCamera
+
+-- Global Custom Settings Variables
+getgenv().__SiddhantCustomWalkSpeed = 35
+getgenv().__SiddhantCustomJumpPower = 120
+getgenv().__SiddhantFlySpeed = 50
+getgenv().__SiddhantThemeColor = getgenv().__SiddhantThemeColor or Color3.fromRGB(15, 15, 20)
+getgenv().__SelectedSpecificPlayer = nil -- Specific player target state
+
+-- Language States (English ON by default)
+getgenv().__LangEnabled = getgenv().__LangEnabled or {
+    English = true,
+    Chinese = false,
+    Nepali = false,
+    Hindi = false
+}
+
+getgenv().__SiddhantLanguage = getgenv().__SiddhantLanguage or "English"
+if not getgenv().__LangEnabled[getgenv().__SiddhantLanguage] then
+    for lang, enabled in pairs(getgenv().__LangEnabled) do
+        if enabled then
+            getgenv().__SiddhantLanguage = lang
+            break
+        end
+    end
+end
+
+-- Individual ESP Selection States (1 by 1)
+getgenv().__ESPStates = getgenv().__ESPStates or {
+    Box = true,
+    Name = true,
+    Bounty = true,
+    Health = true,
+    Level = true
+}
+
+-- Target Filter States
+getgenv().__TargetStates = getgenv().__TargetStates or {
+    Players = true,
+    NPCs = false,
+    Bosses = false,
+    SpecificPlayer = false
+}
+
+-- Multi-Language Dictionary Table
+local Localizations = {
+    English = {
+        Brand = "⚡ SIDDHANT HUB • 💀 PLAYER SELECTOR",
+        Welcome = "Welcome, Siddhant. Choose Your Mode.",
+        FullPVP = "Full PVP Experience",
+        FullDesc = "Full features enabled: Specific Player Targeting, Shift-Lock Aimbot & Auto V3/V4.",
+        CoreCombat = "Core Combat Mode",
+        CoreDesc = "Streamlined interface with essential combat toggles for high-FPS execution.",
+        LaunchBtn = "LAUNCH SIDDHANT HUB",
+        TabCombat = "Combat",
+        TabESP = "ESP",
+        TabSettings = "Config",
+        TabTheme = "Theme",
+        TabLang = "Language",
+        TargetPlayers = "🎯 Target All Players",
+        TargetNPCs = "⚔️ Target NPCs (Mobs)",
+        TargetBosses = "👑 Target Bosses",
+        SpecificPlayerToggle = "👤 Target Specific Player (Below)",
+        SkillAimbot = "🎯 Enable Shift-Lock Skill & Move Aimbot",
+        FastAttack = "⚡ Fast Attack (M1 Booster)",
+        SlintM = "⚔️ Slint M (Auto-Hit Nearby Targets)",
+        AutoV3 = "⚡ Auto V3 Ability (Trigger Race Skill)",
+        AutoV4 = "🔥 Auto V4 Awakening (Auto Transform)",
+        ESPBox = "👁️ Enable ESP Highlight Box",
+        ESPName = "🏷️ Enable ESP Player Name",
+        ESPBounty = "💰 Enable ESP Player Bounty",
+        ESPHealth = "❤️ Enable ESP Player Health",
+        ESPLevel = "⭐ Enable ESP Player Level",
+        SpeedJump = "🚀 Enable Custom Speed & Jump",
+        FlyMode = "✈️ Enable Mobile Fly Mode",
+        WalkSpeed = "🚶 WalkSpeed Value",
+        JumpPower = "🦘 JumpPower Value",
+        ThemeTitle = "Select Interface Background Color"
+    },
+    Chinese = {
+        Brand = "⚡ 悉 Siddhant 中心 • 💀 指定玩家锁定",
+        Welcome = "欢迎，Siddhant。选择您的模式。",
+        FullPVP = "完整PVP体验",
+        FullDesc = "开启全部功能：指定玩家锁定、强力锁头自瞄及自动V3/V4。",
+        CoreCombat = "核心战斗模式",
+        CoreDesc = "简化界面，提供高帧率执行所需的核心战斗开关。",
+        LaunchBtn = "启动 SIDDHANT 中心",
+        TabCombat = "战斗",
+        TabESP = "透视",
+        TabSettings = "配置",
+        TabTheme = "主题",
+        TabLang = "语言",
+        TargetPlayers = "🎯 锁定所有玩家",
+        TargetNPCs = "⚔️ 锁定普通怪 (NPC)",
+        TargetBosses = "👑 锁定Boss",
+        SpecificPlayerToggle = "👤 锁定特定玩家 (下方)",
+        SkillAimbot = "🎯 启用强制Shift-Lock技能移动自瞄",
+        FastAttack = "⚡ 快速攻击 (M1加速器)",
+        SlintM = "⚔️ 自动攻击附近目标 (Slint M)",
+        AutoV3 = "⚡ 自动 V3 能力 (自动开启种族技能)",
+        AutoV4 = "🔥 自动 V4 觉醒 (能量满时自动变身)",
+        ESPBox = "👁️ 启用透视box高亮",
+        ESPName = "🏷️ 启用玩家名字透视",
+        ESPBounty = "💰 启用玩家赏金透视",
+        ESPHealth = "❤️ 启用玩家血量透视",
+        ESPLevel = "⭐ 启用玩家等级透视",
+        SpeedJump = "🚀 启用自定义速度与跳跃",
+        FlyMode = "✈️ 启用手机飞行模式",
+        WalkSpeed = "🚶 移动速度值",
+        JumpPower = "🦘 跳跃高度值",
+        ThemeTitle = "选择界面背景颜色"
+    },
+    Nepali = {
+        Brand = "⚡ सिद्धान्त हब • 💀 प्लेयर सेलेक्टर",
+        Welcome = "स्वागत छ, सिद्धान्त। आफ्नो मोड छान्नुहोस्।",
+        FullPVP = "पूर्ण पिभीपि अनुभव",
+        FullDesc = "सबै सुविधाहरू सक्षम: विशेष खेलाडी टार्गेटिङ, शिफ्ट-लक एइमबोट र अटो V3/V4।",
+        CoreCombat = "कोर कम्ब्याट मोड",
+        CoreDesc = "उच्च-एफपीएस कार्यान्वयनको लागि आवश्यक कम्ब्याट टगलहरूको साथ सरल इन्टरफेस।",
+        LaunchBtn = "सिद्धांत हब सुरु गर्नुहोस्",
+        TabCombat = "कम्ब्याट",
+        TabESP = "इएसपी",
+        TabSettings = "कन्फिग",
+        TabTheme = "थिम",
+        TabLang = "भाषा",
+        TargetPlayers = "🎯 सबै खेलाडीहरूलाई टार्गेट गर्नुहोस्",
+        TargetNPCs = "⚔️ एनपीसी (मब्स) लाई टार्गेट गर्नुहोस्",
+        TargetBosses = "👑 बोसहरूलाई टार्गेट गर्नुहोस्",
+        SpecificPlayerToggle = "👤 विशेष खेलाडी टार्गेट गर्नुहोस् (तल)",
+        SkillAimbot = "🎯 शिफ्ट-लक स्किल र मुभ एइमबोट सक्षम गर्नुहोस्",
+        FastAttack = "⚡ फास्ट अट्याक (M1 बूस्टर)",
+        SlintM = "⚔️ स्लिन्ट एम (नजिकका टार्गेटहरूलाई अटो-हिट)",
+        AutoV3 = "⚡ अटो V3 क्षमता (रेस स्किल ट्रिगर)",
+        AutoV4 = "🔥 अटो V4 अवेकनिङ (मिटर फुल हुँदा अटो ट्रान्सफर्म)",
+        ESPBox = "👁️ इएसपी बक्स सक्षम गर्नुहोस्",
+        ESPName = "🏷️ खेलाडीको नाम सक्षम गर्नुहोस्",
+        ESPBounty = "💰 बाउन्टी इएसपी सक्षम गर्नुहोस्",
+        ESPHealth = "❤️ स्वास्थ्य इएसपी सक्षम गर्नुहोस्",
+        ESPLevel = "⭐ स्तर इएसपी सक्षम गर्नुहोस्",
+        SpeedJump = "🚀 कस्टम स्पीड र जम्प सक्षम गर्नुहोस्",
+        FlyMode = "✈️ मोबाइल फ्लाई मोड सक्षम गर्नुहोस्",
+        WalkSpeed = "🚶 वाकस्पीड मान",
+        JumpPower = "🦘 जम्पपावर मान",
+        ThemeTitle = "इन्टरफेस पृष्ठभूमि रङ्ग चयन गर्नुहोस्"
+    },
+    Hindi = {
+        Brand = "⚡ सिद्धांत हब • 💀 प्लेयर चयनकर्ता",
+        Welcome = "स्वागत है, सिद्धांत। अपना मोड चुनें।",
+        FullPVP = "पूर्ण पीवीपी अनुभव",
+        FullDesc = "सभी सुविधाएँ सक्षम: विशिष्ट खिलाड़ी लक्ष्यीकरण, शिफ्ट-लॉक एइमबोट और ऑटो V3/V4।",
+        CoreCombat = "कोर कॉम्बैट मोड",
+        CoreDesc = "उच्च-एफपीएस निष्पादन के लिए आवश्यक कॉम्बैट टॉगल के साथ सुव्यवस्थित इंटरफ़ेस।",
+        LaunchBtn = "सिद्धांत हब लॉन्च करें",
+        TabCombat = "कॉम्बैट",
+        TabESP = "ईएसपी",
+        TabSettings = "कॉन्फ़िग",
+        TabTheme = "थीम",
+        TabLang = "भाषा",
+        TargetPlayers = "🎯 सभी खिलाड़ियों को लक्षित करें",
+        TargetNPCs = "⚔️ एनपीसी (मॉब्स) को लक्षित करें",
+        TargetBosses = "👑 बॉस को लक्षित करें",
+        SpecificPlayerToggle = "👤 विशिष्ट खिलाड़ी को लक्षित करें (नीचे)",
+        SkillAimbot = "🎯 शिफ्ट-लॉक स्किल और मूव एइमबोट सक्षम करें",
+        FastAttack = "⚡ फास्ट अटैक (M1 बूस्टर)",
+        SlintM = "⚔️ स्लिंट एम (आसपास के लक्ष्यों पर ऑटो-हिट)",
+        AutoV3 = "⚡ ऑटो V3 एबिलिटी (रेस स्किल चालू करें)",
+        AutoV4 = "🔥 ऑटो V4 अवेकनिंग (मीटर फुल होने पर ऑटो ट्रांसफॉर्मेशन)",
+        ESPBox = "👁️ ईएसपी बॉक्स सक्षम करें",
+        ESPName = "🏷️ खिलाड़ी का नाम सक्षम करें",
+        ESPBounty = "💰 बाउंट्री ईएसपी सक्षम करें",
+        ESPHealth = "❤️ हेल्थ ईएसपी सक्षम करें",
+        ESPLevel = "⭐ लेवल ईएसपी सक्षम करें",
+        SpeedJump = "🚀 कस्टम स्पीड और जंप सक्षम करें",
+        FlyMode = "✈️ मोबाइल फ्लाई मोड सक्षम करें",
+        WalkSpeed = "🚶 वॉकस्पीड मान",
+        JumpPower = "🦘 जंपपावर मान",
+        ThemeTitle = "इंटरफ़ेस पृष्ठभूमि रंग चुनें"
+    }
+}
+
+local function L(key)
+    local langTable = Localizations[getgenv().__SiddhantLanguage]
+    if langTable and langTable[key] then
+        return langTable[key]
+    end
+    return Localizations.English[key] or key
+end
+
+local function getNextActiveLanguage()
+    local order = {"English", "Chinese", "Nepali", "Hindi"}
+    local currentIndex = 1
+    for i, lang in ipairs(order) do
+        if lang == getgenv().__SiddhantLanguage then
+            currentIndex = i
+            break
+        end
+    end
+    
+    for i = 1, 4 do
+        currentIndex = (currentIndex % 4) + 1
+        local candidate = order[currentIndex]
+        if getgenv().__LangEnabled[candidate] then
+            return candidate
+        end
+    end
+    return getgenv().__SiddhantLanguage
+end
+
+-- 1. Loading & Experience Selector Screen
+local loadGui = Instance.new("ScreenGui")
+loadGui.Name = "SiddhantHubSystem"
+loadGui.ResetOnSpawn = false
+loadGui.IgnoreGuiInset = true
+loadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+loadGui.Parent = PlayerGui
+
+local blur = Instance.new("BlurEffect")
+blur.Name = "SiddhantBlur"
+blur.Size = 14
+blur.Parent = Lighting
+
+local backdrop = Instance.new("Frame")
+backdrop.Size = UDim2.fromScale(1, 1)
+backdrop.BackgroundColor3 = Color3.fromRGB(4, 4, 7)
+backdrop.BackgroundTransparency = 0.32
+backdrop.BorderSizePixel = 0
+backdrop.Parent = loadGui
+
+local pageLayout = Instance.new("Frame")
+pageLayout.AnchorPoint = Vector2.new(0.5, 0.5)
+pageLayout.Position = UDim2.fromScale(0.5, 0.5)
+pageLayout.Size = UDim2.fromOffset(590, 310)
+pageLayout.BackgroundTransparency = 1
+pageLayout.BorderSizePixel = 0
+pageLayout.Parent = loadGui
+
+local card = Instance.new("Frame")
+card.Size = UDim2.fromScale(1, 1)
+card.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
+card.BorderSizePixel = 0
+card.ClipsDescendants = true
+card.Parent = pageLayout
+
+local cardCorner = Instance.new("UICorner")
+cardCorner.CornerRadius = UDim.new(0, 8)
+cardCorner.Parent = card
+
+local cardStroke = Instance.new("UIStroke")
+cardStroke.Color = Color3.fromRGB(255, 210, 31)
+cardStroke.Thickness = 1.5
+cardStroke.Parent = card
+
+local brand = Instance.new("TextLabel")
+brand.Size = UDim2.new(1, -64, 0, 22)
+brand.Position = UDim2.new(0, 76, 0, 18)
+brand.BackgroundTransparency = 1
+brand.Text = L("Brand")
+brand.TextColor3 = Color3.fromRGB(245, 245, 245)
+brand.TextSize = 16
+brand.Font = Enum.Font.GothamBold
+brand.TextXAlignment = Enum.TextXAlignment.Left
+brand.Parent = card
+
+local heading = Instance.new("TextLabel")
+heading.Size = UDim2.new(1, -64, 0, 27)
+heading.Position = UDim2.new(0, 32, 0, 51)
+heading.BackgroundTransparency = 1
+heading.Text = L("Welcome")
+heading.TextColor3 = Color3.fromRGB(245, 245, 245)
+heading.TextSize = 20
+heading.Font = Enum.Font.GothamBold
+heading.TextXAlignment = Enum.TextXAlignment.Left
+heading.Parent = card
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(1, -64, 0, 18)
+subtitle.Position = UDim2.new(0, 32, 0, 80)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "Specific player selector edition active."
+subtitle.TextColor3 = Color3.fromRGB(155, 155, 163)
+subtitle.TextSize = 13
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = card
+
+local function createExpCard(titleText, descText, posX, isRecommended)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.fromOffset(260, 120)
+    btn.Position = UDim2.fromOffset(posX, 112)
+    btn.BackgroundColor3 = Color3.fromRGB(19, 19, 22)
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+    btn.Text = ""
+    btn.Parent = card
+    
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 6)
+    c.Parent = btn
+    
+    local s = Instance.new("UIStroke")
+    s.Color = isRecommended and Color3.fromRGB(255, 210, 31) or Color3.fromRGB(58, 58, 66)
+    s.Thickness = isRecommended and 2 or 1
+    s.Parent = btn
+    
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -36, 0, 22)
+    titleLbl.Position = UDim2.new(0, 18, 0, 16)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = titleText
+    titleLbl.TextColor3 = Color3.fromRGB(245, 245, 245)
+    titleLbl.TextSize = 16
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = btn
+    
+    local descLbl = Instance.new("TextLabel")
+    descLbl.Size = UDim2.new(1, -36, 0, 50)
+    descLbl.Position = UDim2.new(0, 18, 0, 46)
+    descLbl.BackgroundTransparency = 1
+    descLbl.Text = descText
+    descLbl.TextColor3 = Color3.fromRGB(180, 180, 190)
+    descLbl.TextSize = 12
+    descLbl.Font = Enum.Font.Gotham
+    descLbl.TextWrapped = true
+    descLbl.TextXAlignment = Enum.TextXAlignment.Left
+    descLbl.Parent = btn
+    
+    return btn
+end
+
+local fullCard = createExpCard(L("FullPVP"), L("FullDesc"), 24, true)
+local liteCard = createExpCard(L("CoreCombat"), L("CoreDesc"), 306, false)
+
+local selectedMode = "Full"
+fullCard.Activated:Connect(function() selectedMode = "Full" fullCard.BackgroundColor3 = Color3.fromRGB(29, 27, 20) liteCard.BackgroundColor3 = Color3.fromRGB(19, 19, 22) end)
+liteCard.Activated:Connect(function() selectedMode = "Core" liteCard.BackgroundColor3 = Color3.fromRGB(29, 27, 20) fullCard.BackgroundColor3 = Color3.fromRGB(19, 19, 22) end)
+
+local loadBtn = Instance.new("TextButton")
+loadBtn.Size = UDim2.fromOffset(260, 38)
+loadBtn.AnchorPoint = Vector2.new(0.5, 0)
+loadBtn.Position = UDim2.new(0.5, 0, 0, 250)
+loadBtn.BackgroundColor3 = Color3.fromRGB(255, 210, 31)
+loadBtn.BorderSizePixel = 0
+loadBtn.Text = L("LaunchBtn")
+loadBtn.TextColor3 = Color3.fromRGB(17, 15, 5)
+loadBtn.TextSize = 12
+loadBtn.Font = Enum.Font.GothamBold
+loadBtn.Parent = card
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 4)
+btnCorner.Parent = loadBtn
+
+-- 2. Transition to Main Tabbed Control Hub
+loadBtn.Activated:Connect(function()
+    pcall(function() blur:Destroy() end)
+    loadGui:Destroy()
+    
+    local hubGui = Instance.new("ScreenGui")
+    hubGui.Name = "SiddhantHubUI"
+    hubGui.ResetOnSpawn = false
+    hubGui.IgnoreGuiInset = true
+    hubGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    hubGui.Parent = PlayerGui
+    
+    -- Screen Star Effects Folder
+    local starOverlay = Instance.new("Folder")
+    starOverlay.Name = "SiddhantStarEffects"
+    starOverlay.Parent = hubGui
+    
+    local function spawnStarEffects()
+        for i = 1, 15 do
+            local star = Instance.new("TextLabel")
+            star.Size = UDim2.fromOffset(28, 28)
+            star.Position = UDim2.fromScale(math.random(5, 95) / 100, math.random(5, 95) / 100)
+            star.BackgroundTransparency = 1
+            star.Text = "✨"
+            star.TextSize = math.random(16, 24)
+            star.TextColor3 = Color3.fromRGB(255, 210, 31)
+            star.TextTransparency = 0.2
+            star.ZIndex = 5
+            star.Parent = starOverlay
+            
+            TweenService:Create(star, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                Position = star.Position - UDim2.fromScale(0, 0.05),
+                TextTransparency = 1
+            }):Play()
+        end
+    end
+    
+    local function clearStarEffects()
+        starOverlay:ClearAllChildren()
+    end
+    
+    -- Movable Floating Logo Button (✨)
+    local openBtn = Instance.new("TextButton")
+    openBtn.Size = UDim2.fromOffset(42, 42)
+    openBtn.Position = UDim2.new(0.9, -60, 0, 15)
+    openBtn.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+    openBtn.Text = "✨"
+    openBtn.TextColor3 = Color3.fromRGB(255, 210, 31)
+    openBtn.TextSize = 18
+    openBtn.Font = Enum.Font.GothamBold
+    openBtn.Visible = false
+    openBtn.Parent = hubGui
+    
+    local openCorner = Instance.new("UICorner")
+    openCorner.CornerRadius = UDim.new(0, 8)
+    openCorner.Parent = openBtn
+    
+    local openStroke = Instance.new("UIStroke")
+    openStroke.Color = Color3.fromRGB(255, 210, 31)
+    openStroke.Thickness = 1.5
+    openStroke.Parent = openBtn
+
+    -- Make Floating Logo Movable Anywhere on Mobile
+    local btnDragging, btnInputStart, btnStartPos
+    openBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            btnDragging = true
+            btnInputStart = input.Position
+            btnStartPos = openBtn.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    btnDragging = false
+                end
+            end)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if btnDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - btnInputStart
+            openBtn.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- Main Hub Frame (Clean Background)
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Size = UDim2.fromOffset(580, 380)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.Position = UDim2.fromScale(0.5, 0.5)
+    mainFrame.BackgroundColor3 = getgenv().__SiddhantThemeColor
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Parent = hubGui
+    
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 8)
+    mainCorner.Parent = mainFrame
+    
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Color = Color3.fromRGB(255, 210, 31)
+    mainStroke.Thickness = 1.5
+    mainStroke.Parent = mainFrame
+
+    -- Make Main Hub Draggable for Mobile
+    local dragging, dragInput, dragStart, startPos
+    mainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - dragStart
+            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    -- Title Bar
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -110, 0, 40)
+    title.Position = UDim2.fromOffset(15, 10)
+    title.BackgroundTransparency = 1
+    title.Text = L("Brand")
+    title.TextColor3 = Color3.fromRGB(255, 210, 31)
+    title.TextSize = 13
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 2
+    title.Parent = mainFrame
+
+    local refreshInterface
+
+    -- Quick Header Language Switch Button (🌐)
+    local langCycleBtn = Instance.new("TextButton")
+    langCycleBtn.Size = UDim2.fromOffset(30, 30)
+    langCycleBtn.AnchorPoint = Vector2.new(1, 0)
+    langCycleBtn.Position = UDim2.new(1, -48, 0, 12)
+    langCycleBtn.BackgroundColor3 = Color3.fromRGB(35, 25, 50)
+    langCycleBtn.BorderSizePixel = 0
+    langCycleBtn.Text = "🌐"
+    langCycleBtn.TextColor3 = Color3.fromRGB(255, 210, 31)
+    langCycleBtn.TextSize = 14
+    langCycleBtn.Font = Enum.Font.GothamBold
+    langCycleBtn.ZIndex = 2
+    langCycleBtn.Parent = mainFrame
+
+    local langCycleCorner = Instance.new("UICorner")
+    langCycleCorner.CornerRadius = UDim.new(0, 6)
+    langCycleCorner.Parent = langCycleBtn
+
+    langCycleBtn.Activated:Connect(function()
+        getgenv().__SiddhantLanguage = getNextActiveLanguage()
+        title.Text = L("Brand")
+        if refreshInterface then refreshInterface() end
+    end)
+    
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.fromOffset(30, 30)
+    closeBtn.AnchorPoint = Vector2.new(1, 0)
+    closeBtn.Position = UDim2.new(1, -12, 0, 12)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+    closeBtn.TextSize = 14
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.ZIndex = 2
+    closeBtn.Parent = mainFrame
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeBtn
+    
+    closeBtn.Activated:Connect(function()
+        local isVisible = not mainFrame.Visible
+        mainFrame.Visible = isVisible
+        openBtn.Visible = not isVisible
+        if not isVisible then
+            spawnStarEffects()
+        else
+            clearStarEffects()
+        end
+    end)
+    
+    openBtn.Activated:Connect(function()
+        mainFrame.Visible = true
+        openBtn.Visible = false
+        clearStarEffects()
+    end)
+
+    -- Sidebar Navigation & Content Holder
+    local sidebar = Instance.new("ScrollingFrame")
+    sidebar.Size = UDim2.new(0, 120, 1, -64)
+    sidebar.Position = UDim2.fromOffset(12, 54)
+    sidebar.BackgroundTransparency = 1
+    sidebar.BorderSizePixel = 0
+    sidebar.CanvasSize = UDim2.new(0, 0, 0, 240)
+    sidebar.ScrollBarThickness = 2
+    sidebar.ZIndex = 2
+    sidebar.Parent = mainFrame
+    
+    local sideLayout = Instance.new("UIListLayout")
+    sideLayout.Padding = UDim.new(0, 6)
+    sideLayout.Parent = sidebar
+
+    local contentArea = Instance.new("Frame")
+    contentArea.Size = UDim2.new(1, -150, 1, -64)
+    contentArea.Position = UDim2.fromOffset(140, 54)
+    contentArea.BackgroundTransparency = 1
+    contentArea.ZIndex = 2
+    contentArea.Parent = mainFrame
+
+    local activeTabName = "Combat"
+    local tabs = {}
+    
+    local function createTab(tabId, name)
+        local container = Instance.new("ScrollingFrame")
+        container.Size = UDim2.fromScale(1, 1)
+        container.BackgroundTransparency = 1
+        container.BorderSizePixel = 0
+        container.CanvasSize = UDim2.new(0, 0, 0, 480)
+        container.ScrollBarThickness = 4
+        container.Visible = (activeTabName == tabId)
+        container.ZIndex = 2
+        container.Parent = contentArea
+        
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 8)
+        layout.Parent = container
+        
+        local tabBtn = Instance.new("TextButton")
+        tabBtn.Size = UDim2.new(1, 0, 0, 38)
+        tabBtn.BackgroundColor3 = (activeTabName == tabId) and Color3.fromRGB(40, 35, 18) or Color3.fromRGB(22, 22, 28)
+        tabBtn.BackgroundTransparency = 0.35
+        tabBtn.BorderSizePixel = 0
+        tabBtn.Text = name
+        tabBtn.TextColor3 = (activeTabName == tabId) and Color3.fromRGB(255, 210, 31) or Color3.fromRGB(180, 180, 190)
+        tabBtn.TextSize = 13
+        tabBtn.Font = Enum.Font.GothamMedium
+        tabBtn.ZIndex = 2
+        tabBtn.Parent = sidebar
+        
+        local tCorner = Instance.new("UICorner")
+        tCorner.CornerRadius = UDim.new(0, 6)
+        tCorner.Parent = tabBtn
+        
+        tabBtn.Activated:Connect(function()
+            activeTabName = tabId
+            for _, t in pairs(tabs) do 
+                t.Container.Visible = (t.Id == activeTabName) 
+                t.Button.BackgroundColor3 = (t.Id == activeTabName) and Color3.fromRGB(40, 35, 18) or Color3.fromRGB(22, 22, 28)
+                t.Button.TextColor3 = (t.Id == activeTabName) and Color3.fromRGB(255, 210, 31) or Color3.fromRGB(180, 180, 190)
+            end
+        end)
+        
+        table.insert(tabs, {Id = tabId, Container = container, Button = tabBtn})
+        return container
+    end
+
+    -- Floating Mobile Fly Control Panel
+    local flyGui = Instance.new("Frame")
+    flyGui.Size = UDim2.fromOffset(260, 64)
+    flyGui.Position = UDim2.new(0.5, -130, 0, 50)
+    flyGui.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    flyGui.BorderSizePixel = 0
+    flyGui.Visible = false
+    flyGui.Parent = hubGui
+    
+    local flyGuiCorner = Instance.new("UICorner")
+    flyGuiCorner.CornerRadius = UDim.new(0, 6)
+    flyGuiCorner.Parent = flyGui
+    
+    local flyGuiStroke = Instance.new("UIStroke")
+    flyGuiStroke.Color = Color3.fromRGB(255, 210, 31)
+    flyGuiStroke.Thickness = 1.5
+    flyGuiStroke.Parent = flyGui
+
+    local function createFlyCell(text, size, pos, bgColor, textColor, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = size
+        btn.Position = pos
+        btn.BackgroundColor3 = bgColor
+        btn.BorderSizePixel = 0
+        btn.Text = text
+        btn.TextColor3 = textColor
+        btn.TextSize = 12
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = flyGui
+        if callback then
+            btn.Activated:Connect(callback)
+        end
+        return btn
+    end
+
+    createFlyCell("Speed Up", UDim2.fromOffset(62, 26), UDim2.fromOffset(4, 4), Color3.fromRGB(30, 110, 60), Color3.fromRGB(255, 255, 255), function()
+        getgenv().__SiddhantFlySpeed = getgenv().__SiddhantFlySpeed + 10
+    end)
+    createFlyCell("+5", UDim2.fromOffset(40, 26), UDim2.fromOffset(69, 4), Color3.fromRGB(50, 50, 70), Color3.fromRGB(255, 255, 255), function()
+        getgenv().__SiddhantFlySpeed = getgenv().__SiddhantFlySpeed + 5
+    end)
+    local speedIndicator = createFlyCell("50", UDim2.fromOffset(45, 26), UDim2.fromOffset(112, 4), Color3.fromRGB(200, 120, 20), Color3.fromRGB(255, 255, 255), nil)
+    createFlyCell("SIDDHANT FLY", UDim2.fromOffset(94, 26), UDim2.fromOffset(160, 4), Color3.fromRGB(180, 50, 150), Color3.fromRGB(255, 255, 255), nil)
+
+    createFlyCell("Slow Down", UDim2.fromOffset(62, 26), UDim2.fromOffset(4, 33), Color3.fromRGB(110, 30, 30), Color3.fromRGB(255, 255, 255), function()
+        getgenv().__SiddhantFlySpeed = math.max(10, getgenv().__SiddhantFlySpeed - 10)
+    end)
+    createFlyCell("-5", UDim2.fromOffset(40, 26), UDim2.fromOffset(69, 33), Color3.fromRGB(50, 50, 70), Color3.fromRGB(255, 255, 255), function()
+        getgenv().__SiddhantFlySpeed = math.max(5, getgenv().__SiddhantFlySpeed - 5)
+    end)
+    createFlyCell("Stop", UDim2.fromOffset(142, 26), UDim2.fromOffset(112, 33), Color3.fromRGB(210, 180, 30), Color3.fromRGB(15, 15, 20), function()
+        getgenv().__SiddhantFlyActive = false
+        flyGui.Visible = false
+    end)
+
+    -- Build Dynamic Interface Function
+    refreshInterface = function()
+        for _, child in pairs(contentArea:GetChildren()) do child:Destroy() end
+        for _, child in pairs(sidebar:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+        tabs = {}
+
+        local combatTab = createTab("Combat", L("TabCombat"))
+        local visualsTab = createTab("ESP", L("TabESP"))
+        local settingsTab = createTab("Config", L("TabSettings"))
+        local themeTab = createTab("Theme", L("TabTheme"))
+        local langTab = createTab("Language", L("TabLang"))
+
+        local function addToggleToTab(tabContainer, name, default, callback)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 42)
+            btn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+            btn.BackgroundTransparency = 0.35
+            btn.BorderSizePixel = 0
+            btn.AutoButtonColor = false
+            btn.Text = ""
+            btn.ZIndex = 2
+            btn.Parent = tabContainer
+            
+            local c = Instance.new("UICorner")
+            c.CornerRadius = UDim.new(0, 6)
+            c.Parent = btn
+            
+            local s = Instance.new("UIStroke")
+            s.Color = Color3.fromRGB(40, 40, 50)
+            s.Thickness = 1
+            s.Parent = btn
+            
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.new(1, -65, 1, 0)
+            lbl.Position = UDim2.fromOffset(14, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Text = name
+            lbl.TextColor3 = Color3.fromRGB(200, 200, 210)
+            lbl.TextSize = 12
+            lbl.Font = Enum.Font.GothamMedium
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.ZIndex = 2
+            lbl.Parent = btn
+            
+            local switchBg = Instance.new("Frame")
+            switchBg.Size = UDim2.fromOffset(46, 26)
+            switchBg.AnchorPoint = Vector2.new(1, 0.5)
+            switchBg.Position = UDim2.new(1, -12, 0.5, 0)
+            switchBg.BackgroundColor3 = default and Color3.fromRGB(59, 130, 246) or Color3.fromRGB(45, 45, 55)
+            switchBg.BorderSizePixel = 0
+            switchBg.ZIndex = 2
+            switchBg.Parent = btn
+            
+            local sBgCorner = Instance.new("UICorner")
+            sBgCorner.CornerRadius = UDim.new(1, 0)
+            sBgCorner.Parent = switchBg
+            
+            local switchKnob = Instance.new("Frame")
+            switchKnob.Size = UDim2.fromOffset(20, 20)
+            switchKnob.AnchorPoint = Vector2.new(0, 0.5)
+            switchKnob.Position = default and UDim2.new(0, 22, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
+            switchKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            switchKnob.BorderSizePixel = 0
+            switchKnob.ZIndex = 2
+            switchKnob.Parent = switchBg
+            
+            local knobCorner = Instance.new("UICorner")
+            knobCorner.CornerRadius = UDim.new(1, 0)
+            knobCorner.Parent = switchKnob
+            
+            local state = default
+            btn.Activated:Connect(function()
+                state = not state
+                local targetColor = state and Color3.fromRGB(59, 130, 246) or Color3.fromRGB(45, 45, 55)
+                local targetPos = state and UDim2.new(0, 22, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)
+                
+                TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
+                TweenService:Create(switchKnob, TweenInfo.new(0.2), {Position = targetPos}):Play()
+                
+                pcall(function() callback(state) end)
+            end)
+        end
+
+        -- Combat Tab Toggles & Specific Player Dropdown Selector
+        addToggleToTab(combatTab, L("TargetPlayers"), getgenv().__TargetStates.Players, function(enabled)
+            getgenv().__TargetStates.Players = enabled
+        end)
+
+        addToggleToTab(combatTab, L("TargetNPCs"), getgenv().__TargetStates.NPCs, function(enabled)
+            getgenv().__TargetStates.NPCs = enabled
+        end)
+
+        addToggleToTab(combatTab, L("TargetBosses"), getgenv().__TargetStates.Bosses, function(enabled)
+            getgenv().__TargetStates.Bosses = enabled
+        end)
+
+        addToggleToTab(combatTab, L("SpecificPlayerToggle"), getgenv().__TargetStates.SpecificPlayer, function(enabled)
+            getgenv().__TargetStates.SpecificPlayer = enabled
+        end)
+
+        -- Specific Player Picker Button List Header
+        local playerSelectorHeader = Instance.new("TextButton")
+        playerSelectorHeader.Size = UDim2.new(1, 0, 0, 38)
+        playerSelectorHeader.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
+        playerSelectorHeader.BorderSizePixel = 0
+        playerSelectorHeader.Text = getgenv().__SelectedSpecificPlayer and ("Target: " .. getgenv().__SelectedSpecificPlayer.Name) or "👤 Select Specific Player (Click to Cycle)"
+        playerSelectorHeader.TextColor3 = Color3.fromRGB(255, 210, 31)
+        playerSelectorHeader.TextSize = 12
+        playerSelectorHeader.Font = Enum.Font.GothamBold
+        playerSelectorHeader.ZIndex = 2
+        playerSelectorHeader.Parent = combatTab
+
+        local pshCorner = Instance.new("UICorner")
+        pshCorner.CornerRadius = UDim.new(0, 6)
+        pshCorner.Parent = playerSelectorHeader
+
+        playerSelectorHeader.Activated:Connect(function()
+            local allPlayers = Players:GetPlayers()
+            local foundIndex = 1
+            for i, p in ipairs(allPlayers) do
+                if p == getgenv().__SelectedSpecificPlayer then
+                    foundIndex = i + 1
+                    break
+                end
+            end
+            if foundIndex > #allPlayers then foundIndex = 1 end
+            getgenv().__SelectedSpecificPlayer = allPlayers[foundIndex]
+            if getgenv().__SelectedSpecificPlayer == LocalPlayer and #allPlayers > 1 then
+                foundIndex = (foundIndex % #allPlayers) + 1
+                getgenv().__SelectedSpecificPlayer = allPlayers[foundIndex]
+            end
+            if getgenv().__SelectedSpecificPlayer then
+                playerSelectorHeader.Text = "Target: " .. getgenv().__SelectedSpecificPlayer.Name
+            end
+        end)
+
+        addToggleToTab(combatTab, L("SkillAimbot"), getgenv().__SiddhantSkillAimbot or false, function(enabled)
+            getgenv().__SiddhantSkillAimbot = enabled
+        end)
+        
+        addToggleToTab(combatTab, L("FastAttack"), getgenv().__SiddhantFastAttack or false, function(enabled)
+            getgenv().__SiddhantFastAttack = enabled
+        end)
+
+        addToggleToTab(combatTab, L("SlintM"), getgenv().__SiddhantSlintM or false, function(enabled)
+            getgenv().__SiddhantSlintM = enabled
+        end)
+
+        addToggleToTab(combatTab, L("AutoV3"), getgenv().__AutoV3Enabled or false, function(enabled)
+            getgenv().__AutoV3Enabled = enabled
+        end)
+
+        addToggleToTab(combatTab, L("AutoV4"), getgenv().__AutoV4Enabled or false, function(enabled)
+            getgenv().__AutoV4Enabled = enabled
+        end)
+
+        -- Individual ESP Selection Tab Toggles (1 by 1)
+        addToggleToTab(visualsTab, L("ESPBox"), getgenv().__ESPStates.Box, function(enabled)
+            getgenv().__ESPStates.Box = enabled
+        end)
+
+        addToggleToTab(visualsTab, L("ESPName"), getgenv().__ESPStates.Name, function(enabled)
+            getgenv().__ESPStates.Name = enabled
+        end)
+
+        addToggleToTab(visualsTab, L("ESPBounty"), getgenv().__ESPStates.Bounty, function(enabled)
+            getgenv().__ESPStates.Bounty = enabled
+        end)
+
+        addToggleToTab(visualsTab, L("ESPHealth"), getgenv().__ESPStates.Health, function(enabled)
+            getgenv().__ESPStates.Health = enabled
+        end)
+
+        addToggleToTab(visualsTab, L("ESPLevel"), getgenv().__ESPStates.Level, function(enabled)
+            getgenv().__ESPStates.Level = enabled
+        end)
+
+        -- Config / Settings Tab Toggles
+        addToggleToTab(settingsTab, L("SpeedJump"), getgenv().__SiddhantSpeedBoost or false, function(enabled)
+            getgenv().__SiddhantSpeedBoost = enabled
+        end)
+
+        addToggleToTab(settingsTab, L("FlyMode"), getgenv().__SiddhantFlyActive or false, function(enabled)
+            getgenv().__SiddhantFlyActive = enabled
+            flyGui.Visible = enabled
+        end)
+
+        local function addSettingInput(tabContainer, labelText, defaultValue, callback)
+            local frame = Instance.new("Frame")
+            frame.Size = UDim2.new(1, 0, 0, 50)
+            frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+            frame.BackgroundTransparency = 0.35
+            frame.BorderSizePixel = 0
+            frame.ZIndex = 2
+            frame.Parent = tabContainer
+            
+            local fc = Instance.new("UICorner")
+            fc.CornerRadius = UDim.new(0, 6)
+            fc.Parent = frame
+            
+            local fs = Instance.new("UIStroke")
+            fs.Color = Color3.fromRGB(40, 40, 50)
+            fs.Thickness = 1
+            fs.Parent = frame
+            
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.new(1, -110, 1, 0)
+            lbl.Position = UDim2.fromOffset(12, 0)
+            lbl.BackgroundTransparency = 1
+            lbl.Text = labelText
+            lbl.TextColor3 = Color3.fromRGB(200, 200, 210)
+            lbl.TextSize = 12
+            lbl.Font = Enum.Font.GothamMedium
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.ZIndex = 2
+            lbl.Parent = frame
+            
+            local textBox = Instance.new("TextBox")
+            textBox.Size = UDim2.fromOffset(90, 32)
+            textBox.AnchorPoint = Vector2.new(1, 0.5)
+            textBox.Position = UDim2.new(1, -12, 0.5, 0)
+            textBox.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+            textBox.BorderSizePixel = 0
+            textBox.Text = tostring(defaultValue)
+            textBox.TextColor3 = Color3.fromRGB(255, 210, 31)
+            textBox.TextSize = 14
+            textBox.Font = Enum.Font.GothamBold
+            textBox.ClearTextOnFocus = false
+            textBox.ZIndex = 2
+            textBox.Parent = frame
+            
+            local tbc = Instance.new("UICorner")
+            tbc.CornerRadius = UDim.new(0, 4)
+            tbc.Parent = textBox
+            
+            textBox.FocusLost:Connect(function()
+                local num = tonumber(textBox.Text)
+                if num then
+                    pcall(function() callback(num) end)
+                else
+                    textBox.Text = tostring(defaultValue)
+                end
+            end)
+        end
+
+        addSettingInput(settingsTab, L("WalkSpeed"), getgenv().__SiddhantCustomWalkSpeed, function(value)
+            getgenv().__SiddhantCustomWalkSpeed = value
+        end)
+
+        addSettingInput(settingsTab, L("JumpPower"), getgenv().__SiddhantCustomJumpPower, function(value)
+            getgenv().__SiddhantCustomJumpPower = value
+        end)
+
+        local function addThemeButton(themeName, colorValue, displayName)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 42)
+            btn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+            btn.BackgroundTransparency = 0.35
+            btn.BorderSizePixel = 0
+            btn.AutoButtonColor = false
+            btn.Text = "🎨 " .. displayName
+            btn.TextColor3 = Color3.fromRGB(200, 200, 210)
+            btn.TextSize = 13
+            btn.Font = Enum.Font.GothamBold
+            btn.ZIndex = 2
+            btn.Parent = themeTab
+            
+            local c = Instance.new("UICorner")
+            c.CornerRadius = UDim.new(0, 6)
+            c.Parent = btn
+            
+            local s = Instance.new("UIStroke")
+            s.Color = Color3.fromRGB(40, 40, 50)
+            s.Thickness = 1
+            s.Parent = btn
+            
+            btn.Activated:Connect(function()
+                getgenv().__SiddhantThemeColor = colorValue
+                mainFrame.BackgroundColor3 = colorValue
+            end)
+        end
+
+        addThemeButton("Black", Color3.fromRGB(10, 10, 12), "Solid Black")
+        addThemeButton("Blue", Color3.fromRGB(15, 30, 60), "Neon Blue")
+        addThemeButton("Red", Color3.fromRGB(60, 15, 20), "Crimson Red")
+        addThemeButton("Yellow", Color3.fromRGB(50, 45, 15), "Golden Yellow")
+
+        -- Combined Language Selection & Switcher at Once
+        local function addLangSelector(langKey, langDisplayName)
+            addToggleToTab(langTab, "🌐 " .. langDisplayName, getgenv().__LangEnabled[langKey], function(state)
+                getgenv().__LangEnabled.English = false
+                getgenv().__LangEnabled.Chinese = false
+                getgenv().__LangEnabled.Nepali = false
+                getgenv().__LangEnabled.Hindi = false
+                
+                getgenv().__LangEnabled[langKey] = state
+                if state then
+                    getgenv().__SiddhantLanguage = langKey
+                else
+                    getgenv().__SiddhantLanguage = getNextActiveLanguage()
+                end
+                title.Text = L("Brand")
+                refreshInterface()
+            end)
+        end
+
+        addLangSelector("English", "English (US)")
+        addLangSelector("Chinese", "Chinese (中文)")
+        addLangSelector("Nepali", "Nepali (नेपाली)")
+        addLangSelector("Hindi", "Hindi (हिंदी)")
+    end
+
+    refreshInterface()
+
+    -- Helper: Flexible Target Tracker filtered by Specific Player, All Players, NPCs, and Bosses
+    local function getClosestTarget()
+        local target = nil
+        local shortest = math.huge
+        local char = LocalPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+        
+        -- 1. Specific Player Lock Priority
+        if getgenv().__TargetStates.SpecificPlayer and getgenv().__SelectedSpecificPlayer then
+            local sp = getgenv().__SelectedSpecificPlayer
+            if sp ~= LocalPlayer and sp.Character and sp.Character:FindFirstChild("HumanoidRootPart") and sp.Character:FindFirstChild("Humanoid") and sp.Character.Humanoid.Health > 0 then
+                return sp.Character.HumanoidRootPart
+            end
+        end
+        
+        -- 2. Target All Players
+        if getgenv().__TargetStates.Players then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    local dist = (p.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        target = p.Character.HumanoidRootPart
+                    end
+                end
+            end
+        end
+        
+        -- 3. Target NPCs and Bosses across workspace
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj ~= char and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+                local humanoid = obj.Humanoid
+                local rootPart = obj.HumanoidRootPart
+                if humanoid.Health > 0 and not Players:GetPlayerFromCharacter(obj) then
+                    local isBoss = humanoid.MaxHealth > 5000 or obj.Name:find("Boss") or obj.Name:find("Leader") or obj.Name:find("Admiral") or obj.Name:find("King")
+                    
+                    if (getgenv().__TargetStates.Bosses and isBoss) or (getgenv().__TargetStates.NPCs and not isBoss) then
+                        local dist = (rootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                        if dist < shortest and dist < 500 then
+                            shortest = dist
+                            target = rootPart
+                        end
+                    end
+                end
+            end
+        end
+        
+        return target
+    end
+    
+    -- Helper: Modular Individual ESP Engine (1 by 1)
+    local activeHighlights = {}
+    local activeBillboards = {}
+    
+    local function updateESP()
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                -- 1. Box Highlight
+                if getgenv().__ESPStates.Box then
+                    if not activeHighlights[p] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "SiddhantESPHighlight"
+                        highlight.FillColor = Color3.fromRGB(255, 50, 50)
+                        highlight.OutlineColor = Color3.fromRGB(255, 210, 31)
+                        highlight.FillTransparency = 0.5
+                        highlight.Parent = p.Character
+                        activeHighlights[p] = highlight
+                    end
+                else
+                    if activeHighlights[p] then
+                        activeHighlights[p]:Destroy()
+                        activeHighlights[p] = nil
+                    end
+                end
+                
+                -- 2. Billboard Info Display
+                local anyInfoEnabled = getgenv().__ESPStates.Name or getgenv().__ESPStates.Bounty or getgenv().__ESPStates.Health or getgenv().__ESPStates.Level
+                
+                if anyInfoEnabled then
+                    if not activeBillboards[p] and p.Character:FindFirstChild("Head") then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Name = "SiddhantESPInfo"
+                        billboard.Size = UDim2.fromOffset(220, 80)
+                        billboard.StudsOffset = Vector3.new(0, 3, 0)
+                        billboard.AlwaysOnTop = true
+                        billboard.Parent = p.Character.Head
+                        
+                        local infoLabel = Instance.new("TextLabel")
+                        infoLabel.Name = "InfoText"
+                        infoLabel.Size = UDim2.fromScale(1, 1)
+                        infoLabel.BackgroundTransparency = 1
+                        infoLabel.TextColor3 = Color3.fromRGB(255, 210, 31)
+                        infoLabel.TextStrokeTransparency = 0.2
+                        infoLabel.TextSize = 12
+                        infoLabel.Font = Enum.Font.GothamBold
+                        infoLabel.TextXAlignment = Enum.TextXAlignment.Center
+                        infoLabel.TextVerticalAlignment = Enum.TextVerticalAlignment.Center
+                        infoLabel.Parent = billboard
+                        
+                        activeBillboards[p] = billboard
+                    end
+                    
+                    local billboard = activeBillboards[p]
+                    if billboard and billboard:FindFirstChild("InfoText") and p.Character:FindFirstChild("Humanoid") then
+                        local hum = p.Character.Humanoid
+                        local health = math.floor(hum.Health)
+                        local maxHealth = math.floor(hum.MaxHealth)
+                        
+                        local dataFolder = p:FindFirstChild("Data") or p:FindFirstChild("leaderstats")
+                        local level = "N/A"
+                        local bounty = "N/A"
+                        
+                        if dataFolder then
+                            local lvlStat = dataFolder:FindFirstChild("Level") or dataFolder:FindFirstChild("LVL")
+                            local bnyStat = dataFolder:FindFirstChild("Bounty") or dataFolder:FindFirstChild("Bounty/Honor") or dataFolder:FindFirstChild("Honor")
+                            if lvlStat then level = tostring(lvlStat.Value) end
+                            if bnyStat then bounty = tostring(bnyStat.Value) end
+                        end
+                        
+                        local textLines = {}
+                        if getgenv().__ESPStates.Name then table.insert(textLines, "👤 " .. p.Name) end
+                        if getgenv().__ESPStates.Bounty then table.insert(textLines, "💰 Bounty: " .. bounty) end
+                        if getgenv().__ESPStates.Health then table.insert(textLines, "❤️ HP: " .. health .. " / " .. maxHealth) end
+                        if getgenv().__ESPStates.Level then table.insert(textLines, "⭐ Level: " .. level) end
+                        
+                        billboard.InfoText.Text = table.concat(textLines, "\n")
+                    end
+                else
+                    if activeBillboards[p] then
+                        activeBillboards[p]:Destroy()
+                        activeBillboards[p] = nil
+                    end
+                end
+            end
+        end
+        
+        for p, h in pairs(activeHighlights) do
+            if not p.Parent or not p.Character then
+                if h then h:Destroy() end
+                if activeBillboards[p] then activeBillboards[p]:Destroy() end
+                activeHighlights[p] = nil
+                activeBillboards[p] = nil
+            end
+        end
+    end
+    
+    -- Main Execution Loop with Shift-Lock Aimbot Integration
+    RunService.RenderStepped:Connect(function()
+        pcall(function()
+            speedIndicator.Text = tostring(getgenv().__SiddhantFlySpeed)
+
+            -- Auto V3 Logic
+            if getgenv().__AutoV3Enabled then
+                pcall(function()
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Y, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Y, false, game)
+                end)
+            end
+
+            -- Auto V4 Awakening Logic
+            if getgenv().__AutoV4Enabled then
+                pcall(function()
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.T, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.T, false, game)
+                end)
+            end
+
+            if getgenv().__SiddhantFlyActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                local hrp = LocalPlayer.Character.HumanoidRootPart
+                local hum = LocalPlayer.Character.Humanoid
+                
+                hum.PlatformStand = false
+                LocalPlayer.DevEnableMouseLock = false
+                
+                local moveDir = hum.MoveDirection
+                local camLook = Camera.CFrame.LookVector
+                local camRight = Camera.CFrame.RightVector
+                
+                if moveDir.Magnitude > 0 then
+                    local flyDir = (camLook * moveDir.Z + camRight * moveDir.X).Unit
+                    hrp.AssemblyLinearVelocity = flyDir * getgenv().__SiddhantFlySpeed
+                else
+                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0.1, 0)
+                end
+            elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                if not getgenv().__SiddhantSkillAimbot then
+                    LocalPlayer.DevEnableMouseLock = true
+                end
+            end
+
+            -- SHIFT-LOCK SKILL & MOVE AIMBOT INTEGRATION
+            if getgenv().__SiddhantSkillAimbot then
+                LocalPlayer.DevEnableMouseLock = true
+                local targetPart = getClosestTarget()
+                if targetPart and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = LocalPlayer.Character.HumanoidRootPart
+                    local currentPos = Camera.CFrame.Position
+                    Camera.CFrame = CFrame.new(currentPos, targetPart.Position)
+                    
+                    local lookAtPos = Vector3.new(targetPart.Position.X, hrp.Position.Y, targetPart.Position.Z)
+                    hrp.CFrame = CFrame.new(hrp.Position, lookAtPos)
+                end
+            end
+            
+            if getgenv().__SiddhantFastAttack then
+                pcall(function()
+                    local combatFramework = debug.getupvalues(require(LocalPlayer.PlayerScripts.CombatFramework))
+                    local combatFrameworkRemote = combatFramework[2]
+                    if combatFrameworkRemote and type(combatFrameworkRemote) == "table" then
+                        for _, v in pairs(combatFrameworkRemote) do
+                            if typeof(v) == "function" then
+                                pcall(v)
+                            end
+                        end
+                    end
+                end)
+            end
+
+            if getgenv().__SiddhantSlintM then
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local targetPart = getClosestTarget()
+                        if targetPart and (targetPart.Position - char.HumanoidRootPart.Position).Magnitude <= 35 then
+                            local combatFramework = debug.getupvalues(require(LocalPlayer.PlayerScripts.CombatFramework))
+                            local combatFrameworkRemote = combatFramework[2]
+                            if combatFrameworkRemote and type(combatFrameworkRemote) == "table" then
+                                for _, v in pairs(combatFrameworkRemote) do
+                                    if typeof(v) == "function" then
+                                        pcall(v)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+            
+            if getgenv().__SiddhantSpeedBoost and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().__SiddhantCustomWalkSpeed
+                LocalPlayer.Character.Humanoid.JumpPower = getgenv().__SiddhantCustomJumpPower
+            end
+            
+            if getgenv().__SiddhantESP then
+                updateESP()
+            else
+                for _, h in pairs(activeHighlights) do if h then h:Destroy() end end
+                for _, b in pairs(activeBillboards) do if b then b:Destroy() end end
+                activeHighlights = {}
+                activeBillboards = {}
+            end
+        end)
+    end)
+    
+    print("Siddhant Hub Player Selector Edition is fully active!")
+end)
